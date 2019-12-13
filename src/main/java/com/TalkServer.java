@@ -1,12 +1,12 @@
 package com;
 
-import b.c.S;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.util.ReferenceCountUtil;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
 
 public class TalkServer {
 
@@ -18,15 +18,18 @@ public class TalkServer {
             ServerBootstrap serverBootstrap = new ServerBootstrap();
             serverBootstrap.group(boss, worker)
                     .channel(NioServerSocketChannel.class)
+                    .option(ChannelOption.SO_BACKLOG, 1024)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true)
                     .childHandler(new ChannelInitializer<SocketChannel>() {
 
-                        protected void initChannel(SocketChannel socketChannel) throws Exception {
-                            socketChannel.pipeline().addLast(new TalkHandler());
-                        }
-                    })
-                    .childOption(ChannelOption.SO_BACKLOG, 1024)
-                    .option(ChannelOption.SO_KEEPALIVE, true);
-            ChannelFuture cf  = serverBootstrap.bind(8080).sync();
+                protected void initChannel(SocketChannel socketChannel) throws Exception {
+                    socketChannel.pipeline()
+                            .addLast("decoder", new StringDecoder())
+                            .addLast("encoder", new StringEncoder())
+                            .addLast(new TalkServerHandler());
+                }
+            });
+            ChannelFuture cf  = serverBootstrap.bind(9999).sync();
             cf.channel().closeFuture().sync();
         }finally {
             boss.shutdownGracefully();
